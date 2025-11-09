@@ -5,10 +5,15 @@ Main application entry point
 from flask import Flask, render_template, request, jsonify
 import json
 import os
+import logging
 from soap_client import SOAPClient
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Configuration file path
 CONFIG_FILE = 'config.json'
@@ -45,7 +50,8 @@ def load_wsdl():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error loading WSDL: {wsdl_url if 'wsdl_url' in locals() else 'unknown'}")
+        return jsonify({'error': 'Failed to load WSDL. Please check the URL and try again.'}), 500
 
 
 @app.route('/api/get-method-params', methods=['POST'])
@@ -71,7 +77,8 @@ def get_method_params():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting method params: {method_name if 'method_name' in locals() else 'unknown'}")
+        return jsonify({'error': 'Failed to get method parameters. Please try again.'}), 500
 
 
 @app.route('/api/execute-method', methods=['POST'])
@@ -98,7 +105,8 @@ def execute_method():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error executing method: {method_name if 'method_name' in locals() else 'unknown'}")
+        return jsonify({'error': 'Failed to execute method. Please check parameters and try again.'}), 500
 
 
 @app.route('/api/save-config', methods=['POST'])
@@ -122,7 +130,8 @@ def save_config():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error("Error saving configuration")
+        return jsonify({'error': 'Failed to save configuration. Please try again.'}), 500
 
 
 @app.route('/api/load-config', methods=['GET'])
@@ -144,8 +153,11 @@ def load_config():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error("Error loading configuration")
+        return jsonify({'error': 'Failed to load configuration. Please try again.'}), 500
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Only enable debug in development mode
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
