@@ -99,6 +99,55 @@ header h1 {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+/* Windows Authentication Section */
+.auth-section {
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+    background: #f9fafb;
+}
+
+.auth-toggle {
+    cursor: pointer;
+    padding: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    user-select: none;
+    list-style: none;
+}
+
+.auth-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.auth-toggle::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 0.5rem;
+    transition: transform 0.2s;
+}
+
+details[open] .auth-toggle::before {
+    transform: rotate(90deg);
+}
+
+.auth-fields {
+    padding: 1rem 0.5rem 0.5rem 0.5rem;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .button-group {
     display: flex;
     gap: 0.75rem;

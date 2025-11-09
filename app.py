@@ -40,8 +40,14 @@ def load_wsdl():
         if not wsdl_url:
             return jsonify({'error': 'WSDL URL is required'}), 400
         
-        # Create SOAP client
-        soap_client = SOAPClient(wsdl_url)
+        # Get optional Windows Authentication credentials
+        auth = data.get('auth', {})
+        username = auth.get('username')
+        password = auth.get('password')
+        domain = auth.get('domain')
+        
+        # Create SOAP client with optional authentication
+        soap_client = SOAPClient(wsdl_url, username=username, password=password, domain=domain)
         methods = soap_client.get_methods()
         
         return jsonify({
@@ -118,7 +124,8 @@ def save_config():
         config = {
             'wsdl_url': data.get('wsdl_url'),
             'method_name': data.get('method_name'),
-            'params': data.get('params', {})
+            'params': data.get('params', {}),
+            'auth': data.get('auth', {})
         }
         
         with open(CONFIG_FILE, 'w') as f:

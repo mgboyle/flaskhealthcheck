@@ -10,6 +10,7 @@ A modern, user-friendly web application for testing and monitoring SOAP web serv
 
 ✨ **Modern UI** - Clean, responsive interface with gradient design  
 🔍 **WSDL Loading** - Automatically parse WSDL files and discover methods  
+🔐 **Windows Authentication** - Optional NTLM authentication for secured endpoints  
 ⚙️ **Dynamic Forms** - Auto-generate parameter forms based on method signatures  
 📊 **Response Viewer** - Pretty-print JSON responses with syntax highlighting  
 💾 **Config Persistence** - Save and load configurations in JSON format  
@@ -52,6 +53,15 @@ Visit http://localhost:5000 in your browser.
 
 Enter a WSDL URL (e.g., `https://www.w3schools.com/xml/tempconvert.asmx?WSDL`) and click **Load WSDL**.
 
+#### Windows Authentication (Optional)
+
+If your SOAP endpoint requires Windows Authentication, expand the **🔐 Windows Authentication** section and provide:
+- **Domain** (optional): Your Windows domain
+- **Username**: Your username
+- **Password**: Your password
+
+The application supports NTLM authentication for secured SOAP endpoints.
+
 ### 2. Select Method
 
 Choose a method from the dropdown list and click **Load Parameters**.
@@ -66,7 +76,7 @@ Click **Execute Method** to call the SOAP service and view the response.
 
 ### 5. Save Configuration (Optional)
 
-Click **Save Configuration** to persist your settings for later use.
+Click **Save Configuration** to persist your settings (including authentication credentials) for later use.
 
 ## Example: Temperature Converter
 
@@ -85,9 +95,16 @@ Load a WSDL file and retrieve available methods.
 **Request:**
 ```json
 {
-  "wsdl_url": "https://example.com/service?WSDL"
+  "wsdl_url": "https://example.com/service?WSDL",
+  "auth": {
+    "username": "user",
+    "password": "pass",
+    "domain": "DOMAIN"
+  }
 }
 ```
+
+**Note**: The `auth` object is optional. Include it only when Windows Authentication is required.
 
 **Response:**
 ```json

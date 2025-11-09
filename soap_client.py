@@ -1,10 +1,14 @@
 """
 SOAP Client module for handling WSDL operations
 Uses zeep library for SOAP/WSDL interactions
+Supports Windows Authentication via NTLM
 """
 from zeep import Client
 from zeep.exceptions import Fault, TransportError
 from zeep.wsdl.utils import etree_to_string
+from zeep.transports import Transport
+from requests import Session
+from requests_ntlm import HttpNtlmAuth
 import logging
 
 # Configure logging
@@ -15,18 +19,36 @@ logger = logging.getLogger(__name__)
 class SOAPClient:
     """SOAP Client wrapper for WSDL operations"""
     
-    def __init__(self, wsdl_url):
+    def __init__(self, wsdl_url, username=None, password=None, domain=None):
         """
-        Initialize SOAP client with WSDL URL
+        Initialize SOAP client with WSDL URL and optional Windows Authentication
         
         Args:
             wsdl_url (str): URL to the WSDL file
+            username (str, optional): Username for Windows Authentication
+            password (str, optional): Password for Windows Authentication
+            domain (str, optional): Domain for Windows Authentication
         """
         try:
             self.wsdl_url = wsdl_url
-            self.client = Client(wsdl_url)
+            self.username = username
+            self.password = password
+            self.domain = domain
+            
+            # Setup authentication if credentials provided
+            if username and password:
+                session = Session()
+                # Format username with domain if provided
+                auth_username = f"{domain}\\{username}" if domain else username
+                session.auth = HttpNtlmAuth(auth_username, password)
+                transport = Transport(session=session)
+                self.client = Client(wsdl_url, transport=transport)
+                logger.info(f"Successfully loaded WSDL from {wsdl_url} with Windows Authentication")
+            else:
+                self.client = Client(wsdl_url)
+                logger.info(f"Successfully loaded WSDL from {wsdl_url}")
+            
             self.service = self.client.service
-            logger.info(f"Successfully loaded WSDL from {wsdl_url}")
         except Exception as e:
             logger.error(f"Failed to load WSDL from {wsdl_url}: {str(e)}")
             raise

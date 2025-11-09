@@ -3,12 +3,18 @@
 let currentWsdlUrl = '';
 let currentMethod = '';
 let currentParams = {};
+let currentAuth = {};
 
 // DOM Elements
 const wsdlUrlInput = document.getElementById('wsdlUrl');
 const loadWsdlBtn = document.getElementById('loadWsdlBtn');
 const loadConfigBtn = document.getElementById('loadConfigBtn');
 const wsdlStatus = document.getElementById('wsdlStatus');
+
+// Auth elements
+const authDomain = document.getElementById('authDomain');
+const authUsername = document.getElementById('authUsername');
+const authPassword = document.getElementById('authPassword');
 
 const methodSection = document.getElementById('methodSection');
 const methodSelect = document.getElementById('methodSelect');
@@ -63,12 +69,32 @@ loadWsdlBtn.addEventListener('click', async () => {
     hideStatus(wsdlStatus);
     
     try {
+        // Collect authentication credentials if provided
+        const auth = {};
+        const username = authUsername.value.trim();
+        const password = authPassword.value.trim();
+        const domain = authDomain.value.trim();
+        
+        if (username || password) {
+            auth.username = username;
+            auth.password = password;
+            if (domain) {
+                auth.domain = domain;
+            }
+            currentAuth = auth;
+        } else {
+            currentAuth = {};
+        }
+        
         const response = await fetch('/api/load-wsdl', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ wsdl_url: wsdlUrl })
+            body: JSON.stringify({ 
+                wsdl_url: wsdlUrl,
+                auth: auth
+            })
         });
         
         const data = await response.json();
@@ -233,7 +259,8 @@ saveConfigBtn.addEventListener('click', async () => {
     const config = {
         wsdl_url: currentWsdlUrl,
         method_name: currentMethod,
-        params: currentParams
+        params: currentParams,
+        auth: currentAuth
     };
     
     setButtonLoading(saveConfigBtn, true);
@@ -274,6 +301,14 @@ loadConfigBtn.addEventListener('click', async () => {
             
             // Set WSDL URL
             wsdlUrlInput.value = config.wsdl_url;
+            
+            // Restore authentication fields if present
+            if (config.auth) {
+                authDomain.value = config.auth.domain || '';
+                authUsername.value = config.auth.username || '';
+                authPassword.value = config.auth.password || '';
+                currentAuth = config.auth;
+            }
             
             showStatus(wsdlStatus, '✓ Configuration loaded! Click "Load WSDL" to apply.', 'info');
             
