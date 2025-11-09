@@ -9,7 +9,16 @@ from zeep.wsdl.utils import etree_to_string
 from zeep.transports import Transport
 from requests import Session
 from requests_ntlm import HttpNtlmAuth
-from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+
+# Try to import Kerberos support, but make it optional
+try:
+    from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+    KERBEROS_AVAILABLE = True
+except ImportError:
+    KERBEROS_AVAILABLE = False
+    HTTPKerberosAuth = None
+    OPTIONAL = None
+
 import logging
 
 # Configure logging
@@ -41,6 +50,9 @@ class SOAPClient:
             # Setup authentication if credentials provided
             if username and password and auth_type == 'kerberos':
                 # Kerberos authentication
+                if not KERBEROS_AVAILABLE:
+                    raise ImportError("Kerberos authentication requested but requests_kerberos is not installed. "
+                                    "Install it with: pip install requests-kerberos")
                 session = Session()
                 session.auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
                 transport = Transport(session=session)
