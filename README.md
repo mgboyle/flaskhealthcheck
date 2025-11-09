@@ -1,6 +1,6 @@
-# Flask SOAP Health Check
+# Flask Service Health Check
 
-A modern, user-friendly web application for testing and monitoring SOAP web services. Load WSDL endpoints, select methods, execute calls, and view responses with a beautiful UI.
+A modern, comprehensive web application for testing and monitoring both SOAP and REST web services. Features a service dashboard with health checks, validation rules, and Windows Authentication support.
 
 ![Python](https://img.shields.io/badge/python-3.11-blue.svg)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
@@ -8,14 +8,18 @@ A modern, user-friendly web application for testing and monitoring SOAP web serv
 
 ## Features
 
+### Core Functionality
 ✨ **Modern UI** - Clean, responsive interface with gradient design  
-🔍 **WSDL Loading** - Automatically parse WSDL files and discover methods  
-🔐 **Windows Authentication** - Optional NTLM and Kerberos authentication for secured endpoints  
-⚙️ **Dynamic Forms** - Auto-generate parameter forms based on method signatures  
-📊 **Response Viewer** - Pretty-print JSON responses with syntax highlighting  
-💾 **Config Persistence** - Save and load configurations in JSON format  
+🔍 **SOAP Support** - Full WSDL parsing, method discovery, and execution  
+🌐 **REST Support** - Complete REST API testing with all HTTP methods  
+🔐 **Windows Authentication** - Optional NTLM and Kerberos for both SOAP and REST  
+📊 **Service Dashboard** - Manage and monitor multiple services from one place  
+⚡ **Health Checks** - Automated health monitoring with customizable validation  
+✓ **Validation Rules** - Status codes, text matching, regex, and JSON path validation  
+⚙️ **Dynamic Forms** - Auto-generate parameter forms based on schemas  
+💾 **Config Persistence** - Save and load service configurations  
 🐳 **Docker Ready** - Containerized for easy deployment  
-✅ **Fully Tested** - Comprehensive integration tests included
+✅ **Fully Tested** - 36+ comprehensive integration tests
 
 ## Quick Start
 
@@ -49,11 +53,17 @@ Visit http://localhost:5000 in your browser.
 
 ## Usage
 
-### 1. Load WSDL Endpoint
+The application has two main interfaces:
+
+### SOAP Tester (http://localhost:5000)
+
+Individual SOAP service testing with immediate feedback.
+
+#### 1. Load WSDL Endpoint
 
 Enter a WSDL URL (e.g., `https://www.w3schools.com/xml/tempconvert.asmx?WSDL`) and click **Load WSDL**.
 
-#### Windows Authentication (Optional)
+##### Windows Authentication (Optional)
 
 If your SOAP endpoint requires Windows Authentication, expand the **🔐 Windows Authentication** section and provide:
 - **Authentication Type**: Select either NTLM or Kerberos
@@ -61,23 +71,53 @@ If your SOAP endpoint requires Windows Authentication, expand the **🔐 Windows
 - **Username**: Your username
 - **Password**: Your password
 
-The application supports both NTLM and Kerberos authentication for secured SOAP endpoints.
+The application supports both NTLM and Kerberos authentication for secured endpoints.
 
-### 2. Select Method
+#### 2. Select Method
 
 Choose a method from the dropdown list and click **Load Parameters**.
 
-### 3. Enter Parameters
+#### 3. Enter Parameters
 
 Fill in the required parameters in the auto-generated form.
 
-### 4. Execute & View Response
+#### 4. Execute & View Response
 
 Click **Execute Method** to call the SOAP service and view the response.
 
-### 5. Save Configuration (Optional)
+#### 5. Save Configuration (Optional)
 
 Click **Save Configuration** to persist your settings (including authentication credentials) for later use.
+
+### Service Dashboard (http://localhost:5000/dashboard)
+
+Centralized management and monitoring of multiple services (SOAP and REST).
+
+#### Adding a Service
+
+1. Click **+ Add Service**
+2. Fill in service details:
+   - **Name**: Descriptive service name
+   - **Type**: SOAP or REST
+   - **Endpoint**: Service URL
+   - **Method**: SOAP method name or HTTP method (GET, POST, etc.)
+   - **Authentication** (optional): NTLM or Kerberos credentials
+   - **Validation Rules** (optional): Define success criteria
+
+#### Running Health Checks
+
+- **Single Service**: Click **▶ Check** on any service
+- **All Services**: Click **▶ Run All Checks**
+- Results show real-time status with success/failure indicators
+
+#### Validation Rules
+
+Add validation rules to verify response content:
+- **Status Code**: Check HTTP status (e.g., 200)
+- **Contains**: Verify response contains specific text
+- **Regex**: Match response against regex pattern
+- **JSON Path**: Validate nested JSON values (e.g., `result.status = "ok"`)
+- **Equals**: Check exact field values
 
 ## Example: Temperature Converter
 
@@ -171,6 +211,82 @@ Save current configuration to JSON file.
 ### GET /api/load-config
 Load previously saved configuration.
 
+### Service Management Endpoints
+
+#### GET /api/services
+Get all configured services.
+
+**Response:**
+```json
+{
+  "success": true,
+  "services": {
+    "service-id-1": {
+      "id": "service-id-1",
+      "name": "My API",
+      "type": "rest",
+      "endpoint": "https://api.example.com",
+      "method": "GET",
+      "last_check": "2025-11-09T22:00:00",
+      "last_result": {...}
+    }
+  }
+}
+```
+
+#### POST /api/services
+Add a new service.
+
+**Request:**
+```json
+{
+  "name": "My API",
+  "type": "rest",
+  "endpoint": "https://api.example.com",
+  "method": "GET",
+  "rest_endpoint": "/health",
+  "auth": {
+    "auth_type": "ntlm",
+    "username": "user",
+    "password": "pass"
+  },
+  "validation_rules": [
+    {
+      "type": "status_code",
+      "value": 200
+    }
+  ]
+}
+```
+
+#### PUT /api/services/<service_id>
+Update an existing service.
+
+#### DELETE /api/services/<service_id>
+Delete a service.
+
+#### POST /api/services/<service_id>/healthcheck
+Run health check for a specific service.
+
+**Response:**
+```json
+{
+  "success": true,
+  "result": {
+    "success": true,
+    "response": {...},
+    "validation": {
+      "passed": true,
+      "failures": []
+    },
+    "timestamp": "2025-11-09T22:00:00"
+  }
+}
+```
+
+#### POST /api/healthcheck/all
+Run health checks for all services.
+
 ## Running Tests
 
 ```bash
@@ -180,8 +296,8 @@ pip install -r requirements.txt
 # Run all tests
 pytest tests/test_integration.py -v
 
-# Run specific test
-pytest tests/test_integration.py::TestIntegration::test_complete_workflow -v
+# Run specific test class
+pytest tests/test_integration.py::TestRESTServices -v
 ```
 
 ### Test Coverage
@@ -190,8 +306,15 @@ The integration tests verify:
 - ✅ WSDL loading and method discovery
 - ✅ Parameter extraction
 - ✅ SOAP method execution
+- ✅ NTLM and Kerberos authentication
 - ✅ Configuration persistence
-- ✅ Complete end-to-end workflow with CelsiusToFahrenheit
+- ✅ REST service CRUD operations
+- ✅ Service manager functionality
+- ✅ Health checks for SOAP and REST
+- ✅ Validation rules (all types)
+- ✅ Complete end-to-end workflows
+
+**Total: 36+ integration tests**
 
 ## Project Structure
 
@@ -199,15 +322,26 @@ The integration tests verify:
 flaskhealthcheck/
 ├── app.py                      # Main Flask application
 ├── soap_client.py              # SOAP client wrapper (zeep)
+├── rest_client.py              # REST client wrapper
+├── service_manager.py          # Service & validation manager
 ├── requirements.txt            # Python dependencies
 ├── Dockerfile                  # Docker configuration
 ├── README.md                   # This file
 ├── .gitignore                  # Git ignore rules
 ├── templates/
-│   └── index.html             # Main UI template
+│   ├── index.html             # SOAP tester UI
+│   └── dashboard.html         # Service dashboard UI
 ├── static/
 │   ├── css/
-│   │   └── style.css          # Modern CSS styles
+│   │   ├── style.css          # Base styles
+│   │   └── dashboard.css      # Dashboard styles
+│   └── js/
+│       ├── app.js             # SOAP tester logic
+│       └── dashboard.js       # Dashboard logic
+└── tests/
+    ├── test_integration.py    # Integration tests
+    └── test_tempconvert.wsdl  # Mock WSDL
+```
 │   └── js/
 │       └── app.js             # Frontend JavaScript
 └── tests/
