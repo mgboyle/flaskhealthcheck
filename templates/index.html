@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOAP Health Check - WSDL Tester</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 SOAP Health Check</h1>
+            <p class="subtitle">Load WSDL, Test Methods, Monitor Health</p>
+            <nav class="nav-links">
+                <a href="/" class="nav-link active">SOAP Tester</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+            </nav>
+        </header>
+
+        <div class="main-content">
+            <!-- WSDL Loading Section -->
+            <section class="card">
+                <h2>1. Load WSDL Endpoint</h2>
+                <div class="form-group">
+                    <input type="text" 
+                           id="wsdlUrl" 
+                           class="input-field" 
+                           placeholder="Enter WSDL URL (e.g., https://www.w3schools.com/xml/tempconvert.asmx?WSDL)"
+                           value="">
+                    
+                    <!-- Windows Authentication (Optional) -->
+                    <details id="authSection" class="auth-section">
+                        <summary class="auth-toggle">🔐 Windows Authentication (Optional)</summary>
+                        <div class="auth-fields">
+                            <label class="auth-label">Authentication Type:</label>
+                            <select id="authType" class="input-field">
+                                <option value="ntlm">NTLM</option>
+                                <option value="kerberos">Kerberos</option>
+                            </select>
+                            <input type="text" 
+                                   id="authDomain" 
+                                   class="input-field" 
+                                   placeholder="Domain (optional for NTLM)">
+                            <input type="text" 
+                                   id="authUsername" 
+                                   class="input-field" 
+                                   placeholder="Username">
+                            <input type="password" 
+                                   id="authPassword" 
+                                   class="input-field" 
+                                   placeholder="Password">
+                        </div>
+                    </details>
+                    
+                    <div class="button-group">
+                        <button id="loadWsdlBtn" class="btn btn-primary">Load WSDL</button>
+                        <button id="loadConfigBtn" class="btn btn-secondary">Load Saved Config</button>
+                    </div>
+                </div>
+                <div id="wsdlStatus" class="status-message"></div>
+            </section>
+
+            <!-- Method Selection Section -->
+            <section class="card" id="methodSection" style="display: none;">
+                <h2>2. Select Method</h2>
+                <div class="form-group">
+                    <select id="methodSelect" class="input-field">
+                        <option value="">-- Select a method --</option>
+                    </select>
+                    <button id="loadParamsBtn" class="btn btn-primary">Load Parameters</button>
+                </div>
+                <div id="methodStatus" class="status-message"></div>
+            </section>
+
+            <!-- Parameters Section -->
+            <section class="card" id="paramsSection" style="display: none;">
+                <h2>3. Enter Parameters</h2>
+                <form id="paramsForm">
+                    <div id="paramsList"></div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-success">Execute Method</button>
+                        <button type="button" id="saveConfigBtn" class="btn btn-secondary">Save Configuration</button>
+                    </div>
+                </form>
+                <div id="paramsStatus" class="status-message"></div>
+            </section>
+
+            <!-- Response Section -->
+            <section class="card" id="responseSection" style="display: none;">
+                <h2>4. Response</h2>
+                <div id="responseContainer">
+                    <div class="response-header">
+                        <span class="response-label">Status:</span>
+                        <span id="responseStatus" class="status-badge"></span>
+                    </div>
+                    <pre id="responseBody" class="response-body"></pre>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>Flask SOAP Health Check v1.0 | Built with Flask & Zeep</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

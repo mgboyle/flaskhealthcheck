@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<definitions xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" 
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+             xmlns:s="http://www.w3.org/2001/XMLSchema" 
+             xmlns:tns="https://www.w3schools.com/xml/" 
+             targetNamespace="https://www.w3schools.com/xml/" 
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
+  <types>
+    <s:schema elementFormDefault="qualified" targetNamespace="https://www.w3schools.com/xml/">
+      <s:element name="CelsiusToFahrenheit">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="Celsius" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CelsiusToFahrenheitResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="CelsiusToFahrenheitResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="FahrenheitToCelsius">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="Fahrenheit" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="FahrenheitToCelsiusResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="FahrenheitToCelsiusResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </types>
+  <message name="CelsiusToFahrenheitSoapIn">
+    <part name="parameters" element="tns:CelsiusToFahrenheit" />
+  </message>
+  <message name="CelsiusToFahrenheitSoapOut">
+    <part name="parameters" element="tns:CelsiusToFahrenheitResponse" />
+  </message>
+  <message name="FahrenheitToCelsiusSoapIn">
+    <part name="parameters" element="tns:FahrenheitToCelsius" />
+  </message>
+  <message name="FahrenheitToCelsiusSoapOut">
+    <part name="parameters" element="tns:FahrenheitToCelsiusResponse" />
+  </message>
+  <portType name="TempConvertSoap">
+    <operation name="CelsiusToFahrenheit">
+      <input message="tns:CelsiusToFahrenheitSoapIn" />
+      <output message="tns:CelsiusToFahrenheitSoapOut" />
+    </operation>
+    <operation name="FahrenheitToCelsius">
+      <input message="tns:FahrenheitToCelsiusSoapIn" />
+      <output message="tns:FahrenheitToCelsiusResponse" />
+    </operation>
+  </portType>
+  <binding name="TempConvertSoap" type="tns:TempConvertSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <operation name="CelsiusToFahrenheit">
+      <soap:operation soapAction="https://www.w3schools.com/xml/CelsiusToFahrenheit" style="document" />
+      <input>
+        <soap:body use="literal" />
+      </input>
+      <output>
+        <soap:body use="literal" />
+      </output>
+    </operation>
+    <operation name="FahrenheitToCelsius">
+      <soap:operation soapAction="https://www.w3schools.com/xml/FahrenheitToCelsius" style="document" />
+      <input>
+        <soap:body use="literal" />
+      </input>
+      <output>
+        <soap:body use="literal" />
+      </output>
+    </operation>
+  </binding>
+  <service name="TempConvert">
+    <port name="TempConvertSoap" binding="tns:TempConvertSoap">
+      <soap:address location="http://localhost:8000/tempconvert" />
+    </port>
+  </service>
+</definitions>
