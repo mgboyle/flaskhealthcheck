@@ -58,6 +58,104 @@ function setupEventListeners() {
         e.preventDefault();
         saveService();
     });
+    
+    // WSDL loading for dashboard
+    const loadWsdlBtn = document.getElementById('loadWsdlFromDashboard');
+    if (loadWsdlBtn) {
+        loadWsdlBtn.addEventListener('click', () => loadWsdlForService());
+    }
+    
+    // Sync method select and manual input
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const soapMethodManual = document.getElementById('soapMethodManual');
+    if (soapMethodSelect && soapMethodManual) {
+        soapMethodSelect.addEventListener('change', () => {
+            if (soapMethodSelect.value) {
+                soapMethodManual.value = soapMethodSelect.value;
+            }
+        });
+        soapMethodManual.addEventListener('input', () => {
+            if (soapMethodManual.value) {
+                soapMethodSelect.value = '';
+            }
+        });
+    }
+}
+
+async function loadWsdlForService() {
+    const wsdlUrl = document.getElementById('serviceEndpoint').value.trim();
+    const statusElement = document.getElementById('wsdlLoadStatus');
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const loadWsdlBtn = document.getElementById('loadWsdlFromDashboard');
+    
+    if (!wsdlUrl) {
+        statusElement.textContent = 'Please enter an endpoint URL first';
+        statusElement.className = 'status-message error';
+        statusElement.style.display = 'block';
+        return;
+    }
+    
+    // Set loading state
+    loadWsdlBtn.disabled = true;
+    loadWsdlBtn.textContent = 'Loading...';
+    statusElement.textContent = 'Loading WSDL...';
+    statusElement.className = 'status-message info';
+    statusElement.style.display = 'block';
+    
+    try {
+        // Collect authentication credentials if provided
+        const auth = {};
+        const authType = document.getElementById('authType').value;
+        const username = document.getElementById('authUsername').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+        const domain = document.getElementById('authDomain').value.trim();
+        
+        if (username || password) {
+            auth.username = username;
+            auth.password = password;
+            auth.auth_type = authType || 'ntlm';
+            if (domain && authType === 'ntlm') {
+                auth.domain = domain;
+            }
+        }
+        
+        const response = await fetch('/api/load-wsdl', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                wsdl_url: wsdlUrl,
+                auth: Object.keys(auth).length > 0 ? auth : undefined
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Populate method dropdown
+            soapMethodSelect.innerHTML = '<option value="">-- Select a method --</option>';
+            data.methods.forEach(method => {
+                const option = document.createElement('option');
+                option.value = method;
+                option.textContent = method;
+                soapMethodSelect.appendChild(option);
+            });
+            
+            statusElement.textContent = `✓ WSDL loaded successfully! Found ${data.methods.length} methods.`;
+            statusElement.className = 'status-message success';
+        } else {
+            statusElement.textContent = `Error: ${data.error || 'Failed to load WSDL'}`;
+            statusElement.className = 'status-message error';
+        }
+    } catch (error) {
+        console.error('Error loading WSDL:', error);
+        statusElement.textContent = `Network error: ${error.message}`;
+        statusElement.className = 'status-message error';
+    } finally {
+        loadWsdlBtn.disabled = false;
+        loadWsdlBtn.textContent = '📥 Load WSDL & Discover Methods';
+    }
 }
 
 async function loadServices() {
@@ -158,6 +256,23 @@ function openServiceModal(serviceId = null) {
     serviceForm.reset();
     validationRules.innerHTML = '';
     
+    // Clear WSDL status message
+    const statusElement = document.getElementById('wsdlLoadStatus');
+    if (statusElement) {
+        statusElement.style.display = 'none';
+        statusElement.textContent = '';
+    }
+    
+    // Reset SOAP method fields
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const soapMethodManual = document.getElementById('soapMethodManual');
+    if (soapMethodSelect) {
+        soapMethodSelect.innerHTML = '<option value="">-- Select or enter method name --</option>';
+    }
+    if (soapMethodManual) {
+        soapMethodManual.value = '';
+    }
+    
     if (serviceId && services[serviceId]) {
         // Edit mode
         const service = services[serviceId];
@@ -168,7 +283,19 @@ function openServiceModal(serviceId = null) {
         
         // Type-specific fields
         if (service.type === 'soap') {
-            document.getElementById('soapMethod').value = service.method || '';
+            const soapMethodSelect = document.getElementById('soapMethod');
+            const soapMethodManual = document.getElementById('soapMethodManual');
+            
+            // Try to find method in dropdown, otherwise use manual input
+            const methodExists = Array.from(soapMethodSelect.options).some(opt => opt.value === service.method);
+            if (methodExists) {
+                soapMethodSelect.value = service.method || '';
+                soapMethodManual.value = '';
+            } else {
+                soapMethodSelect.value = '';
+                soapMethodManual.value = service.method || '';
+            }
+            
             soapFields.style.display = 'block';
             restFields.style.display = 'none';
         } else {
@@ -214,7 +341,10 @@ async function saveService() {
     
     // Type-specific fields
     if (serviceData.type === 'soap') {
-        serviceData.method = document.getElementById('soapMethod').value;
+        // Get method from either dropdown or manual input
+        const soapMethodSelect = document.getElementById('soapMethod').value;
+        const soapMethodManual = document.getElementById('soapMethodManual').value.trim();
+        serviceData.method = soapMethodManual || soapMethodSelect;
         serviceData.params = {};
     } else {
         serviceData.method = document.getElementById('restMethod').value;
