@@ -55,6 +55,33 @@ header h1 {
     opacity: 0.95;
 }
 
+.nav-links {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.nav-link {
+    padding: 0.5rem 1.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.nav-link.active {
+    background: white;
+    color: var(--primary-color);
+}
+
 .main-content {
     background: var(--bg-color);
     border-radius: 12px;
