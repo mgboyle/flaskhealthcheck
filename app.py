@@ -294,8 +294,8 @@ def run_healthcheck(service_id):
         })
         
     except Exception as e:
-        logger.error(f"Error running health check: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error running health check for service {service_id}")
+        return jsonify({'error': 'Failed to run health check. Please check service configuration.'}), 500
 
 
 @app.route('/api/healthcheck/all', methods=['POST'])
@@ -323,8 +323,8 @@ def run_all_healthchecks():
         })
         
     except Exception as e:
-        logger.error(f"Error running all health checks: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error("Error running all health checks")
+        return jsonify({'error': 'Failed to run all health checks. Please try again.'}), 500
 
 
 def _execute_healthcheck(service):
@@ -402,9 +402,10 @@ def _execute_healthcheck(service):
         }
         
     except Exception as e:
+        logger.error(f"Health check error for {service.get('name', 'unknown')}: {str(e)}")
         return {
             'success': False,
-            'error': str(e),
+            'error': 'Health check failed. Please check service configuration.',
             'timestamp': datetime.now().isoformat()
         }
 
