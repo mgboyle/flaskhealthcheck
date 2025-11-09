@@ -10,7 +10,7 @@ A modern, user-friendly web application for testing and monitoring SOAP web serv
 
 ✨ **Modern UI** - Clean, responsive interface with gradient design  
 🔍 **WSDL Loading** - Automatically parse WSDL files and discover methods  
-🔐 **Windows Authentication** - Optional NTLM authentication for secured endpoints  
+🔐 **Windows Authentication** - Optional NTLM and Kerberos authentication for secured endpoints  
 ⚙️ **Dynamic Forms** - Auto-generate parameter forms based on method signatures  
 📊 **Response Viewer** - Pretty-print JSON responses with syntax highlighting  
 💾 **Config Persistence** - Save and load configurations in JSON format  
@@ -56,11 +56,12 @@ Enter a WSDL URL (e.g., `https://www.w3schools.com/xml/tempconvert.asmx?WSDL`) a
 #### Windows Authentication (Optional)
 
 If your SOAP endpoint requires Windows Authentication, expand the **🔐 Windows Authentication** section and provide:
-- **Domain** (optional): Your Windows domain
+- **Authentication Type**: Select either NTLM or Kerberos
+- **Domain** (optional for NTLM): Your Windows domain
 - **Username**: Your username
 - **Password**: Your password
 
-The application supports NTLM authentication for secured SOAP endpoints.
+The application supports both NTLM and Kerberos authentication for secured SOAP endpoints.
 
 ### 2. Select Method
 
@@ -97,6 +98,7 @@ Load a WSDL file and retrieve available methods.
 {
   "wsdl_url": "https://example.com/service?WSDL",
   "auth": {
+    "auth_type": "ntlm",
     "username": "user",
     "password": "pass",
     "domain": "DOMAIN"
@@ -105,6 +107,8 @@ Load a WSDL file and retrieve available methods.
 ```
 
 **Note**: The `auth` object is optional. Include it only when Windows Authentication is required.
+- For **NTLM**: Set `auth_type` to `"ntlm"` and optionally include `domain`
+- For **Kerberos**: Set `auth_type` to `"kerberos"` (domain not used)
 
 **Response:**
 ```json

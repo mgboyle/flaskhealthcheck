@@ -12,6 +12,7 @@ const loadConfigBtn = document.getElementById('loadConfigBtn');
 const wsdlStatus = document.getElementById('wsdlStatus');
 
 // Auth elements
+const authType = document.getElementById('authType');
 const authDomain = document.getElementById('authDomain');
 const authUsername = document.getElementById('authUsername');
 const authPassword = document.getElementById('authPassword');
@@ -74,11 +75,13 @@ loadWsdlBtn.addEventListener('click', async () => {
         const username = authUsername.value.trim();
         const password = authPassword.value.trim();
         const domain = authDomain.value.trim();
+        const type = authType.value;
         
         if (username || password) {
             auth.username = username;
             auth.password = password;
-            if (domain) {
+            auth.auth_type = type;
+            if (domain && type === 'ntlm') {
                 auth.domain = domain;
             }
             currentAuth = auth;
@@ -304,6 +307,7 @@ loadConfigBtn.addEventListener('click', async () => {
             
             // Restore authentication fields if present
             if (config.auth) {
+                authType.value = config.auth.auth_type || 'ntlm';
                 authDomain.value = config.auth.domain || '';
                 authUsername.value = config.auth.username || '';
                 authPassword.value = config.auth.password || '';

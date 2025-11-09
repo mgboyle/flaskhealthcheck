@@ -4,3 +4,4 @@ Werkzeug==3.0.1
 pytest==7.4.3
 requests==2.31.0
 requests-ntlm==1.2.0
+requests-kerberos==0.14.0

@@ -28,10 +28,15 @@
                     <details id="authSection" class="auth-section">
                         <summary class="auth-toggle">🔐 Windows Authentication (Optional)</summary>
                         <div class="auth-fields">
+                            <label class="auth-label">Authentication Type:</label>
+                            <select id="authType" class="input-field">
+                                <option value="ntlm">NTLM</option>
+                                <option value="kerberos">Kerberos</option>
+                            </select>
                             <input type="text" 
                                    id="authDomain" 
                                    class="input-field" 
-                                   placeholder="Domain (optional)">
+                                   placeholder="Domain (optional for NTLM)">
                             <input type="text" 
                                    id="authUsername" 
                                    class="input-field" 

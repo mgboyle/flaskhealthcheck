@@ -256,15 +256,34 @@ class TestIntegration:
 class TestWindowsAuthentication:
     """Test Windows Authentication functionality"""
     
-    def test_load_wsdl_with_windows_auth(self, client):
-        """Test loading WSDL with Windows Authentication credentials"""
+    def test_load_wsdl_with_ntlm_auth(self, client):
+        """Test loading WSDL with NTLM Authentication credentials"""
         response = client.post('/api/load-wsdl',
                               json={
                                   'wsdl_url': SAMPLE_WSDL,
                                   'auth': {
                                       'username': 'testuser',
                                       'password': 'testpass',
-                                      'domain': 'TESTDOMAIN'
+                                      'domain': 'TESTDOMAIN',
+                                      'auth_type': 'ntlm'
+                                  }
+                              },
+                              content_type='application/json')
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert len(data['methods']) > 0
+    
+    def test_load_wsdl_with_kerberos_auth(self, client):
+        """Test loading WSDL with Kerberos Authentication credentials"""
+        response = client.post('/api/load-wsdl',
+                              json={
+                                  'wsdl_url': SAMPLE_WSDL,
+                                  'auth': {
+                                      'username': 'testuser',
+                                      'password': 'testpass',
+                                      'auth_type': 'kerberos'
                                   }
                               },
                               content_type='application/json')
@@ -290,8 +309,8 @@ class TestWindowsAuthentication:
         data = json.loads(response.data)
         assert data['success'] is True
     
-    def test_save_config_with_auth(self, client, cleanup_config):
-        """Test saving configuration with authentication"""
+    def test_save_config_with_ntlm_auth(self, client, cleanup_config):
+        """Test saving configuration with NTLM authentication"""
         config_data = {
             'wsdl_url': SAMPLE_WSDL,
             'method_name': CELSIUS_TO_FAHRENHEIT_METHOD,
@@ -299,7 +318,8 @@ class TestWindowsAuthentication:
             'auth': {
                 'username': 'testuser',
                 'password': 'testpass',
-                'domain': 'TESTDOMAIN'
+                'domain': 'TESTDOMAIN',
+                'auth_type': 'ntlm'
             }
         }
         
@@ -319,6 +339,37 @@ class TestWindowsAuthentication:
         assert 'auth' in data['config']
         assert data['config']['auth']['username'] == 'testuser'
         assert data['config']['auth']['domain'] == 'TESTDOMAIN'
+        assert data['config']['auth']['auth_type'] == 'ntlm'
+    
+    def test_save_config_with_kerberos_auth(self, client, cleanup_config):
+        """Test saving configuration with Kerberos authentication"""
+        config_data = {
+            'wsdl_url': SAMPLE_WSDL,
+            'method_name': CELSIUS_TO_FAHRENHEIT_METHOD,
+            'params': {'Celsius': '25'},
+            'auth': {
+                'username': 'testuser',
+                'password': 'testpass',
+                'auth_type': 'kerberos'
+            }
+        }
+        
+        response = client.post('/api/save-config',
+                              json=config_data,
+                              content_type='application/json')
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        
+        # Load and verify auth was saved
+        response = client.get('/api/load-config')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert 'auth' in data['config']
+        assert data['config']['auth']['username'] == 'testuser'
+        assert data['config']['auth']['auth_type'] == 'kerberos'
     
     def test_backward_compatibility_no_auth(self, client):
         """Test backward compatibility when no auth is provided"""

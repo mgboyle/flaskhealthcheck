@@ -1,7 +1,7 @@
 """
 SOAP Client module for handling WSDL operations
 Uses zeep library for SOAP/WSDL interactions
-Supports Windows Authentication via NTLM
+Supports Windows Authentication via NTLM and Kerberos
 """
 from zeep import Client
 from zeep.exceptions import Fault, TransportError
@@ -9,6 +9,7 @@ from zeep.wsdl.utils import etree_to_string
 from zeep.transports import Transport
 from requests import Session
 from requests_ntlm import HttpNtlmAuth
+from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 import logging
 
 # Configure logging
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class SOAPClient:
     """SOAP Client wrapper for WSDL operations"""
     
-    def __init__(self, wsdl_url, username=None, password=None, domain=None):
+    def __init__(self, wsdl_url, username=None, password=None, domain=None, auth_type='ntlm'):
         """
         Initialize SOAP client with WSDL URL and optional Windows Authentication
         
@@ -27,23 +28,33 @@ class SOAPClient:
             wsdl_url (str): URL to the WSDL file
             username (str, optional): Username for Windows Authentication
             password (str, optional): Password for Windows Authentication
-            domain (str, optional): Domain for Windows Authentication
+            domain (str, optional): Domain for Windows Authentication (NTLM only)
+            auth_type (str, optional): Authentication type - 'ntlm' or 'kerberos'. Default is 'ntlm'
         """
         try:
             self.wsdl_url = wsdl_url
             self.username = username
             self.password = password
             self.domain = domain
+            self.auth_type = auth_type
             
             # Setup authentication if credentials provided
-            if username and password:
+            if username and password and auth_type == 'kerberos':
+                # Kerberos authentication
+                session = Session()
+                session.auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
+                transport = Transport(session=session)
+                self.client = Client(wsdl_url, transport=transport)
+                logger.info(f"Successfully loaded WSDL from {wsdl_url} with Kerberos Authentication")
+            elif username and password:
+                # NTLM authentication (default)
                 session = Session()
                 # Format username with domain if provided
                 auth_username = f"{domain}\\{username}" if domain else username
                 session.auth = HttpNtlmAuth(auth_username, password)
                 transport = Transport(session=session)
                 self.client = Client(wsdl_url, transport=transport)
-                logger.info(f"Successfully loaded WSDL from {wsdl_url} with Windows Authentication")
+                logger.info(f"Successfully loaded WSDL from {wsdl_url} with NTLM Authentication")
             else:
                 self.client = Client(wsdl_url)
                 logger.info(f"Successfully loaded WSDL from {wsdl_url}")

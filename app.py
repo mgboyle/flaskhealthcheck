@@ -45,9 +45,10 @@ def load_wsdl():
         username = auth.get('username')
         password = auth.get('password')
         domain = auth.get('domain')
+        auth_type = auth.get('auth_type', 'ntlm')  # Default to NTLM for backward compatibility
         
         # Create SOAP client with optional authentication
-        soap_client = SOAPClient(wsdl_url, username=username, password=password, domain=domain)
+        soap_client = SOAPClient(wsdl_url, username=username, password=password, domain=domain, auth_type=auth_type)
         methods = soap_client.get_methods()
         
         return jsonify({

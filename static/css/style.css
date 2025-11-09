@@ -137,6 +137,14 @@ details[open] .auth-toggle::before {
     animation: slideDown 0.2s ease-out;
 }
 
+.auth-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
 @keyframes slideDown {
     from {
         opacity: 0;
