@@ -1,0 +1,5 @@
+Flask==3.0.0
+zeep==4.2.1
+Werkzeug==3.0.1
+pytest==7.4.3
+requests==2.31.0
