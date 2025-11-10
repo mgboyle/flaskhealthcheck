@@ -15,6 +15,9 @@ import uuid
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Check if in development mode for detailed error messages
+DEBUG_MODE = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('DEBUG', 'False').lower() == 'true'
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -111,10 +114,15 @@ def get_method_params():
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error getting method params for {method_name if 'method_name' in locals() else 'unknown'}: {error_msg}", exc_info=True)
-        return jsonify({
-            'error': 'Failed to get method parameters',
-            'details': error_msg
-        }), 500
+        
+        response_data = {
+            'error': 'Failed to get method parameters'
+        }
+        # Only include detailed error information in debug mode
+        if DEBUG_MODE:
+            response_data['details'] = error_msg
+        
+        return jsonify(response_data), 500
 
 
 @app.route('/api/execute-method', methods=['POST'])
@@ -313,10 +321,15 @@ def run_healthcheck(service_id):
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error running health check for service {service_id}: {error_msg}", exc_info=True)
-        return jsonify({
-            'error': 'Failed to run health check',
-            'details': error_msg
-        }), 500
+        
+        response_data = {
+            'error': 'Failed to run health check'
+        }
+        # Only include detailed error information in debug mode
+        if DEBUG_MODE:
+            response_data['details'] = error_msg
+        
+        return jsonify(response_data), 500
 
 
 @app.route('/api/healthcheck/all', methods=['POST'])
