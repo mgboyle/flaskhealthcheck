@@ -65,6 +65,12 @@ function setupEventListeners() {
         loadWsdlBtn.addEventListener('click', () => loadWsdlForService());
     }
     
+    // Load example payload button
+    const loadExampleBtn = document.getElementById('loadExamplePayload');
+    if (loadExampleBtn) {
+        loadExampleBtn.addEventListener('click', () => loadExamplePayloadForMethod());
+    }
+    
     // Sync method select and manual input
     const soapMethodSelect = document.getElementById('soapMethod');
     const soapMethodManual = document.getElementById('soapMethodManual');
@@ -72,11 +78,21 @@ function setupEventListeners() {
         soapMethodSelect.addEventListener('change', () => {
             if (soapMethodSelect.value) {
                 soapMethodManual.value = soapMethodSelect.value;
+                // Show example payload button when method is selected
+                const loadExampleBtn = document.getElementById('loadExamplePayload');
+                if (loadExampleBtn) {
+                    loadExampleBtn.style.display = 'inline-block';
+                }
             }
         });
         soapMethodManual.addEventListener('input', () => {
             if (soapMethodManual.value) {
                 soapMethodSelect.value = '';
+                // Show example payload button when method is typed
+                const loadExampleBtn = document.getElementById('loadExamplePayload');
+                if (loadExampleBtn) {
+                    loadExampleBtn.style.display = 'inline-block';
+                }
             }
         });
     }
@@ -155,6 +171,75 @@ async function loadWsdlForService() {
     } finally {
         loadWsdlBtn.disabled = false;
         loadWsdlBtn.textContent = '📥 Load WSDL & Discover Methods';
+    }
+}
+
+async function loadExamplePayloadForMethod() {
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const soapMethodManual = document.getElementById('soapMethodManual');
+    const soapParamsTextarea = document.getElementById('soapParams');
+    const wsdlUrl = document.getElementById('serviceEndpoint').value.trim();
+    const loadExampleBtn = document.getElementById('loadExamplePayload');
+    
+    // Get method name from either dropdown or manual input
+    const methodName = soapMethodSelect.value || soapMethodManual.value.trim();
+    
+    if (!methodName) {
+        alert('Please select or enter a method name first');
+        return;
+    }
+    
+    if (!wsdlUrl) {
+        alert('Please enter an endpoint URL and load WSDL first');
+        return;
+    }
+    
+    // Set loading state
+    loadExampleBtn.disabled = true;
+    loadExampleBtn.textContent = 'Loading...';
+    
+    try {
+        // Collect authentication credentials if provided
+        const auth = {};
+        const authType = document.getElementById('authType').value;
+        const username = document.getElementById('authUsername').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+        const domain = document.getElementById('authDomain').value.trim();
+        
+        if (username || password) {
+            auth.username = username;
+            auth.password = password;
+            auth.auth_type = authType || 'ntlm';
+            if (domain && authType === 'ntlm') {
+                auth.domain = domain;
+            }
+        }
+        
+        const response = await fetch('/api/get-method-params', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                method_name: methodName
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success && data.example_payload) {
+            // Populate the textarea with formatted JSON
+            soapParamsTextarea.value = JSON.stringify(data.example_payload, null, 2);
+            alert('Example payload loaded! You can now edit the values as needed.');
+        } else {
+            alert(data.error || 'Failed to load example payload');
+        }
+    } catch (error) {
+        console.error('Error loading example payload:', error);
+        alert(`Failed to load example payload: ${error.message}`);
+    } finally {
+        loadExampleBtn.disabled = false;
+        loadExampleBtn.textContent = '📝 Load Example Payload';
     }
 }
 
@@ -285,6 +370,7 @@ function openServiceModal(serviceId = null) {
         if (service.type === 'soap') {
             const soapMethodSelect = document.getElementById('soapMethod');
             const soapMethodManual = document.getElementById('soapMethodManual');
+            const soapParamsTextarea = document.getElementById('soapParams');
             
             // Try to find method in dropdown, otherwise use manual input
             const methodExists = Array.from(soapMethodSelect.options).some(opt => opt.value === service.method);
@@ -294,6 +380,11 @@ function openServiceModal(serviceId = null) {
             } else {
                 soapMethodSelect.value = '';
                 soapMethodManual.value = service.method || '';
+            }
+            
+            // Populate params textarea
+            if (service.params) {
+                soapParamsTextarea.value = JSON.stringify(service.params, null, 2);
             }
             
             soapFields.style.display = 'block';
@@ -345,7 +436,15 @@ async function saveService() {
         const soapMethodSelect = document.getElementById('soapMethod').value;
         const soapMethodManual = document.getElementById('soapMethodManual').value.trim();
         serviceData.method = soapMethodManual || soapMethodSelect;
-        serviceData.params = {};
+        
+        // Get params from textarea (parse JSON)
+        const soapParamsTextarea = document.getElementById('soapParams');
+        try {
+            serviceData.params = JSON.parse(soapParamsTextarea.value || '{}');
+        } catch (e) {
+            alert('Invalid JSON in parameters field. Please check the format.');
+            return;
+        }
     } else {
         serviceData.method = document.getElementById('restMethod').value;
         serviceData.rest_endpoint = document.getElementById('restEndpoint').value;

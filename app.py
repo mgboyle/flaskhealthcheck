@@ -90,10 +90,12 @@ def get_method_params():
             return jsonify({'error': 'Method name is required'}), 400
         
         params = soap_client.get_method_params(method_name)
+        example_payload = soap_client.get_method_example_payload(method_name)
         
         return jsonify({
             'success': True,
-            'params': params
+            'params': params,
+            'example_payload': example_payload
         })
         
     except Exception as e:

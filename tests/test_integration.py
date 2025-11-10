@@ -137,6 +137,9 @@ class TestFlaskEndpoints:
         data = json.loads(response.data)
         assert data['success'] is True
         assert len(data['params']) > 0
+        # Verify example payload is included
+        assert 'example_payload' in data
+        assert isinstance(data['example_payload'], dict)
     
     @patch('soap_client.SOAPClient.execute_method')
     def test_execute_method_endpoint(self, mock_execute, client):

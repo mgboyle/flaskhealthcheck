@@ -81,6 +81,14 @@
                             </select>
                             <input type="text" id="soapMethodManual" class="input-field" placeholder="Or type method name manually" style="margin-top: 8px;">
                         </div>
+                        <div class="form-group">
+                            <label>Method Parameters (JSON)</label>
+                            <div class="button-group" style="margin-bottom: 8px;">
+                                <button type="button" id="loadExamplePayload" class="btn btn-secondary btn-sm" style="display: none;">📝 Load Example Payload</button>
+                            </div>
+                            <textarea id="soapParams" class="input-field" rows="6" placeholder='{"param1": "value1", "param2": "value2"}'>{}</textarea>
+                            <small style="color: #64748b;">Enter parameters as JSON. Complex types will be auto-populated when you load example payload.</small>
+                        </div>
                     </div>
 
                     <!-- REST specific fields -->
