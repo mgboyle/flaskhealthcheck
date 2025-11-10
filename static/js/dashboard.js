@@ -2,6 +2,14 @@
 
 let currentServiceId = null;
 let services = {};
+let debugMode = false;
+
+// Debug logging helper
+function debugLog(...args) {
+    if (debugMode) {
+        console.log('[DEBUG]', ...args);
+    }
+}
 
 // DOM Elements
 const servicesContainer = document.getElementById('servicesContainer');
@@ -20,6 +28,18 @@ const validationRules = document.getElementById('validationRules');
 document.addEventListener('DOMContentLoaded', () => {
     loadServices();
     setupEventListeners();
+    
+    // Setup debug mode toggle
+    const debugCheckbox = document.getElementById('debugMode');
+    if (debugCheckbox) {
+        debugCheckbox.addEventListener('change', (e) => {
+            debugMode = e.target.checked;
+            console.log(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`);
+            if (debugMode) {
+                console.log('Debug mode enabled. Detailed logs will be shown in the console.');
+            }
+        });
+    }
 });
 
 function setupEventListeners() {
@@ -58,6 +78,201 @@ function setupEventListeners() {
         e.preventDefault();
         saveService();
     });
+    
+    // WSDL loading for dashboard
+    const loadWsdlBtn = document.getElementById('loadWsdlFromDashboard');
+    if (loadWsdlBtn) {
+        loadWsdlBtn.addEventListener('click', () => loadWsdlForService());
+    }
+    
+    // Load example payload button
+    const loadExampleBtn = document.getElementById('loadExamplePayload');
+    if (loadExampleBtn) {
+        loadExampleBtn.addEventListener('click', () => loadExamplePayloadForMethod());
+    }
+    
+    // Sync method select and manual input
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const soapMethodManual = document.getElementById('soapMethodManual');
+    if (soapMethodSelect && soapMethodManual) {
+        soapMethodSelect.addEventListener('change', () => {
+            if (soapMethodSelect.value) {
+                soapMethodManual.value = soapMethodSelect.value;
+                // Show example payload button when method is selected
+                const loadExampleBtn = document.getElementById('loadExamplePayload');
+                if (loadExampleBtn) {
+                    loadExampleBtn.style.display = 'inline-block';
+                }
+            }
+        });
+        soapMethodManual.addEventListener('input', () => {
+            if (soapMethodManual.value) {
+                soapMethodSelect.value = '';
+                // Show example payload button when method is typed
+                const loadExampleBtn = document.getElementById('loadExamplePayload');
+                if (loadExampleBtn) {
+                    loadExampleBtn.style.display = 'inline-block';
+                }
+            }
+        });
+    }
+}
+
+async function loadWsdlForService() {
+    const wsdlUrl = document.getElementById('serviceEndpoint').value.trim();
+    const statusElement = document.getElementById('wsdlLoadStatus');
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const loadWsdlBtn = document.getElementById('loadWsdlFromDashboard');
+    
+    if (!wsdlUrl) {
+        statusElement.textContent = 'Please enter an endpoint URL first';
+        statusElement.className = 'status-message error';
+        statusElement.style.display = 'block';
+        return;
+    }
+    
+    // Set loading state
+    loadWsdlBtn.disabled = true;
+    loadWsdlBtn.textContent = 'Loading...';
+    statusElement.textContent = 'Loading WSDL...';
+    statusElement.className = 'status-message info';
+    statusElement.style.display = 'block';
+    
+    try {
+        // Collect authentication credentials if provided
+        const auth = {};
+        const authType = document.getElementById('authType').value;
+        const username = document.getElementById('authUsername').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+        const domain = document.getElementById('authDomain').value.trim();
+        
+        if (username || password) {
+            auth.username = username;
+            auth.password = password;
+            auth.auth_type = authType || 'ntlm';
+            if (domain && authType === 'ntlm') {
+                auth.domain = domain;
+            }
+        }
+        
+        const response = await fetch('/api/load-wsdl', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                wsdl_url: wsdlUrl,
+                auth: Object.keys(auth).length > 0 ? auth : undefined
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Populate method dropdown
+            soapMethodSelect.innerHTML = '<option value="">-- Select a method --</option>';
+            data.methods.forEach(method => {
+                const option = document.createElement('option');
+                option.value = method;
+                option.textContent = method;
+                soapMethodSelect.appendChild(option);
+            });
+            
+            statusElement.textContent = `✓ WSDL loaded successfully! Found ${data.methods.length} methods.`;
+            statusElement.className = 'status-message success';
+        } else {
+            statusElement.textContent = `Error: ${data.error || 'Failed to load WSDL'}`;
+            statusElement.className = 'status-message error';
+        }
+    } catch (error) {
+        console.error('Error loading WSDL:', error);
+        statusElement.textContent = `Network error: ${error.message}`;
+        statusElement.className = 'status-message error';
+    } finally {
+        loadWsdlBtn.disabled = false;
+        loadWsdlBtn.textContent = '📥 Load WSDL & Discover Methods';
+    }
+}
+
+async function loadExamplePayloadForMethod() {
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const soapMethodManual = document.getElementById('soapMethodManual');
+    const soapParamsTextarea = document.getElementById('soapParams');
+    const wsdlUrl = document.getElementById('serviceEndpoint').value.trim();
+    const loadExampleBtn = document.getElementById('loadExamplePayload');
+    
+    // Get method name from either dropdown or manual input
+    const methodName = soapMethodSelect.value || soapMethodManual.value.trim();
+    
+    if (!methodName) {
+        alert('Please select or enter a method name first');
+        return;
+    }
+    
+    if (!wsdlUrl) {
+        alert('Please enter an endpoint URL and load WSDL first');
+        return;
+    }
+    
+    // Set loading state
+    loadExampleBtn.disabled = true;
+    loadExampleBtn.textContent = 'Loading...';
+    
+    try {
+        debugLog(`Loading example payload for method: ${methodName}`);
+        console.log(`Loading example payload for method: ${methodName}`);
+        
+        const response = await fetch('/api/get-method-params', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                method_name: methodName
+            })
+        });
+        
+        const data = await response.json();
+        
+        debugLog('Response from /api/get-method-params:', data);
+        console.log('Response from /api/get-method-params:', data);
+        
+        if (response.ok && data.success && data.example_payload) {
+            debugLog('Example payload received:', data.example_payload);
+            console.log('Example payload received:', data.example_payload);
+            
+            // Check if the payload is empty
+            if (Object.keys(data.example_payload).length === 0) {
+                alert('No parameters found for this method. The method may not require any input parameters.');
+                soapParamsTextarea.value = '{}';
+            } else {
+                // Populate the textarea with formatted JSON
+                const formattedPayload = JSON.stringify(data.example_payload, null, 2);
+                soapParamsTextarea.value = formattedPayload;
+                debugLog('Populated textarea with:', formattedPayload);
+                console.log('Populated textarea with:', formattedPayload);
+                alert('Example payload loaded successfully! You can now edit the values as needed.');
+            }
+        } else {
+            const errorMsg = data.error || 'Failed to load example payload';
+            const details = data.details ? `\n\nDetails: ${data.details}` : '';
+            console.error('Error loading example payload:', errorMsg, details);
+            debugLog('Error details:', data);
+            
+            let displayMsg = errorMsg;
+            if (debugMode && details) {
+                displayMsg += details;
+            }
+            alert(displayMsg + '\n\nCheck the console for more details.');
+        }
+    } catch (error) {
+        console.error('Error loading example payload:', error);
+        debugLog('Exception caught:', error);
+        alert(`Failed to load example payload: ${error.message}\n\nPlease check the browser console for more details.`);
+    } finally {
+        loadExampleBtn.disabled = false;
+        loadExampleBtn.textContent = '📝 Load Example Payload';
+    }
 }
 
 async function loadServices() {
@@ -158,6 +373,23 @@ function openServiceModal(serviceId = null) {
     serviceForm.reset();
     validationRules.innerHTML = '';
     
+    // Clear WSDL status message
+    const statusElement = document.getElementById('wsdlLoadStatus');
+    if (statusElement) {
+        statusElement.style.display = 'none';
+        statusElement.textContent = '';
+    }
+    
+    // Reset SOAP method fields
+    const soapMethodSelect = document.getElementById('soapMethod');
+    const soapMethodManual = document.getElementById('soapMethodManual');
+    if (soapMethodSelect) {
+        soapMethodSelect.innerHTML = '<option value="">-- Select or enter method name --</option>';
+    }
+    if (soapMethodManual) {
+        soapMethodManual.value = '';
+    }
+    
     if (serviceId && services[serviceId]) {
         // Edit mode
         const service = services[serviceId];
@@ -168,7 +400,25 @@ function openServiceModal(serviceId = null) {
         
         // Type-specific fields
         if (service.type === 'soap') {
-            document.getElementById('soapMethod').value = service.method || '';
+            const soapMethodSelect = document.getElementById('soapMethod');
+            const soapMethodManual = document.getElementById('soapMethodManual');
+            const soapParamsTextarea = document.getElementById('soapParams');
+            
+            // Try to find method in dropdown, otherwise use manual input
+            const methodExists = Array.from(soapMethodSelect.options).some(opt => opt.value === service.method);
+            if (methodExists) {
+                soapMethodSelect.value = service.method || '';
+                soapMethodManual.value = '';
+            } else {
+                soapMethodSelect.value = '';
+                soapMethodManual.value = service.method || '';
+            }
+            
+            // Populate params textarea
+            if (service.params) {
+                soapParamsTextarea.value = JSON.stringify(service.params, null, 2);
+            }
+            
             soapFields.style.display = 'block';
             restFields.style.display = 'none';
         } else {
@@ -214,8 +464,19 @@ async function saveService() {
     
     // Type-specific fields
     if (serviceData.type === 'soap') {
-        serviceData.method = document.getElementById('soapMethod').value;
-        serviceData.params = {};
+        // Get method from either dropdown or manual input
+        const soapMethodSelect = document.getElementById('soapMethod').value;
+        const soapMethodManual = document.getElementById('soapMethodManual').value.trim();
+        serviceData.method = soapMethodManual || soapMethodSelect;
+        
+        // Get params from textarea (parse JSON)
+        const soapParamsTextarea = document.getElementById('soapParams');
+        try {
+            serviceData.params = JSON.parse(soapParamsTextarea.value || '{}');
+        } catch (e) {
+            alert('Invalid JSON in parameters field. Please check the format.');
+            return;
+        }
     } else {
         serviceData.method = document.getElementById('restMethod').value;
         serviceData.rest_endpoint = document.getElementById('restEndpoint').value;
@@ -321,7 +582,15 @@ function collectValidationRules() {
 
 async function runHealthcheck(serviceId) {
     try {
-        showNotification(`Running health check for ${services[serviceId].name}...`, 'info');
+        const serviceName = services[serviceId].name;
+        showNotification(`Running health check for ${serviceName}...`, 'info');
+        
+        debugLog(`Starting health check for service ${serviceId}: ${serviceName}`);
+        console.log(`Starting health check for service ${serviceId}: ${serviceName}`);
+        
+        if (debugMode) {
+            console.log('Service configuration:', services[serviceId]);
+        }
         
         const response = await fetch(`/api/services/${serviceId}/healthcheck`, {
             method: 'POST'
@@ -329,20 +598,41 @@ async function runHealthcheck(serviceId) {
         
         const data = await response.json();
         
+        debugLog('Health check response:', data);
+        console.log('Health check response:', data);
+        
         if (data.success) {
             const result = data.result;
             if (result.success) {
                 showNotification('Health check passed!', 'success');
             } else {
-                showNotification('Health check failed', 'error');
+                const errorMsg = result.error || 'Health check failed';
+                console.error('Health check failed:', result);
+                debugLog('Failure details:', result);
+                
+                let displayMsg = `Health check failed: ${errorMsg}`;
+                if (debugMode && result.response) {
+                    displayMsg += `\n\nResponse: ${JSON.stringify(result.response, null, 2)}`;
+                }
+                showNotification(displayMsg, 'error');
             }
             loadServices();
         } else {
-            showNotification(data.error || 'Health check failed', 'error');
+            const errorMsg = data.error || 'Health check failed';
+            const details = data.details ? `\n\nDetails: ${data.details}` : '';
+            console.error('Health check error:', errorMsg, details);
+            debugLog('Error data:', data);
+            
+            let displayMsg = errorMsg;
+            if (debugMode && details) {
+                displayMsg += details;
+            }
+            showNotification(displayMsg, 'error');
         }
     } catch (error) {
         console.error('Error running health check:', error);
-        showNotification('Failed to run health check', 'error');
+        debugLog('Exception:', error);
+        showNotification(`Failed to run health check: ${error.message}`, 'error');
     }
 }
 

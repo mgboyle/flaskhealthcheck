@@ -9,7 +9,16 @@ from zeep.wsdl.utils import etree_to_string
 from zeep.transports import Transport
 from requests import Session
 from requests_ntlm import HttpNtlmAuth
-from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+
+# Try to import Kerberos support, but make it optional
+try:
+    from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+    KERBEROS_AVAILABLE = True
+except ImportError:
+    KERBEROS_AVAILABLE = False
+    HTTPKerberosAuth = None
+    OPTIONAL = None
+
 import logging
 
 # Configure logging
@@ -41,6 +50,9 @@ class SOAPClient:
             # Setup authentication if credentials provided
             if username and password and auth_type == 'kerberos':
                 # Kerberos authentication
+                if not KERBEROS_AVAILABLE:
+                    raise ImportError("Kerberos authentication requested but requests_kerberos is not installed. "
+                                    "Install it with: pip install requests-kerberos")
                 session = Session()
                 session.auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
                 transport = Transport(session=session)
@@ -110,6 +122,96 @@ class SOAPClient:
                                 params.append(param_info)
         
         return params
+    
+    def get_method_example_payload(self, method_name):
+        """
+        Generate an example payload for a method based on WSDL schema
+        
+        Args:
+            method_name (str): Name of the method
+            
+        Returns:
+            dict: Example payload with nested structure for complex types
+        """
+        try:
+            for service in self.client.wsdl.services.values():
+                for port in service.ports.values():
+                    if method_name in port.binding._operations:
+                        operation = port.binding._operations[method_name]
+                        
+                        # Get input message
+                        if operation.input:
+                            input_msg = operation.input.body.type
+                            
+                            # Generate example from schema
+                            if hasattr(input_msg, 'elements'):
+                                example = {}
+                                for element in input_msg.elements:
+                                    param_name = element[0]
+                                    param_type = element[1].type
+                                    example[param_name] = self._generate_example_value(param_type, param_name)
+                                return example
+            
+            return {}
+        except Exception as e:
+            logger.error(f"Error generating example payload for {method_name}: {str(e)}")
+            return {}
+    
+    def _generate_example_value(self, param_type, param_name='value'):
+        """
+        Generate an example value based on parameter type
+        
+        Args:
+            param_type: The parameter type from WSDL schema
+            param_name: The parameter name for context
+            
+        Returns:
+            Example value (string, dict, list, etc.)
+        """
+        # Check if it's a complex type
+        if hasattr(param_type, 'elements'):
+            # Complex type - recursively generate nested structure
+            example = {}
+            for element in param_type.elements:
+                nested_name = element[0]
+                nested_type = element[1].type
+                example[nested_name] = self._generate_example_value(nested_type, nested_name)
+            return example
+        
+        # Simple types - return example values
+        type_name = str(param_type.name) if hasattr(param_type, 'name') else 'string'
+        type_name_lower = type_name.lower()
+        
+        # Generate contextual examples based on type and name
+        if 'int' in type_name_lower or 'long' in type_name_lower:
+            return 0
+        elif 'bool' in type_name_lower:
+            return False
+        elif 'decimal' in type_name_lower or 'double' in type_name_lower or 'float' in type_name_lower:
+            return 0.0
+        elif 'date' in type_name_lower:
+            return '2025-01-01'
+        elif 'time' in type_name_lower:
+            return '12:00:00'
+        else:
+            # String or unknown type - provide contextual example
+            name_lower = param_name.lower()
+            if 'email' in name_lower:
+                return 'user@example.com'
+            elif 'phone' in name_lower:
+                return '555-1234'
+            elif 'name' in name_lower:
+                return 'John Doe'
+            elif 'address' in name_lower:
+                return '123 Main St'
+            elif 'city' in name_lower:
+                return 'New York'
+            elif 'country' in name_lower:
+                return 'USA'
+            elif 'code' in name_lower or 'id' in name_lower:
+                return 'ABC123'
+            else:
+                return f'example_{param_name}'
     
     def execute_method(self, method_name, params):
         """

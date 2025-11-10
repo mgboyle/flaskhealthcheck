@@ -15,6 +15,9 @@ import uuid
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Check if in development mode for detailed error messages
+DEBUG_MODE = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('DEBUG', 'False').lower() == 'true'
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -84,21 +87,42 @@ def get_method_params():
         method_name = data.get('method_name')
         
         if not soap_client:
-            return jsonify({'error': 'No WSDL loaded'}), 400
+            logger.error("No WSDL loaded - soap_client is None")
+            return jsonify({
+                'error': 'No WSDL loaded. Please load a WSDL first.',
+                'details': 'The SOAP client is not initialized. Click "Load WSDL & Discover Methods" to load the WSDL.'
+            }), 400
         
         if not method_name:
-            return jsonify({'error': 'Method name is required'}), 400
+            return jsonify({
+                'error': 'Method name is required',
+                'details': 'Please select or enter a method name.'
+            }), 400
         
+        logger.info(f"Getting params and example payload for method: {method_name}")
         params = soap_client.get_method_params(method_name)
+        example_payload = soap_client.get_method_example_payload(method_name)
+        
+        logger.info(f"Successfully generated example payload for {method_name}: {example_payload}")
         
         return jsonify({
             'success': True,
-            'params': params
+            'params': params,
+            'example_payload': example_payload
         })
         
     except Exception as e:
-        logger.error(f"Error getting method params: {method_name if 'method_name' in locals() else 'unknown'}")
-        return jsonify({'error': 'Failed to get method parameters. Please try again.'}), 500
+        error_msg = str(e)
+        logger.error(f"Error getting method params for {method_name if 'method_name' in locals() else 'unknown'}: {error_msg}", exc_info=True)
+        
+        response_data = {
+            'error': 'Failed to get method parameters'
+        }
+        # Only include detailed error information in debug mode
+        if DEBUG_MODE:
+            response_data['details'] = error_msg
+        
+        return jsonify(response_data), 500
 
 
 @app.route('/api/execute-method', methods=['POST'])
@@ -283,6 +307,7 @@ def run_healthcheck(service_id):
         if not service:
             return jsonify({'error': 'Service not found'}), 404
         
+        logger.info(f"Running health check for service: {service.get('name', service_id)}")
         result = _execute_healthcheck(service)
         
         # Update the service with the result
@@ -294,8 +319,17 @@ def run_healthcheck(service_id):
         })
         
     except Exception as e:
-        logger.error(f"Error running health check for service {service_id}")
-        return jsonify({'error': 'Failed to run health check. Please check service configuration.'}), 500
+        error_msg = str(e)
+        logger.error(f"Error running health check for service {service_id}: {error_msg}", exc_info=True)
+        
+        response_data = {
+            'error': 'Failed to run health check'
+        }
+        # Only include detailed error information in debug mode
+        if DEBUG_MODE:
+            response_data['details'] = error_msg
+        
+        return jsonify(response_data), 500
 
 
 @app.route('/api/healthcheck/all', methods=['POST'])
@@ -347,6 +381,7 @@ def _execute_healthcheck(service):
     try:
         if service_type == 'soap':
             # SOAP service health check
+            logger.info(f"Executing SOAP health check for endpoint: {endpoint}")
             client = SOAPClient(
                 endpoint,
                 username=auth.get('username'),
@@ -358,7 +393,10 @@ def _execute_healthcheck(service):
             method_name = service.get('method')
             params = service.get('params', {})
             
+            logger.info(f"Calling SOAP method '{method_name}' with params: {params}")
             response_data = client.execute_method(method_name, params)
+            logger.info(f"SOAP method response: {response_data}")
+            
             response = {
                 'status_code': 200,
                 'body': response_data,
@@ -367,6 +405,7 @@ def _execute_healthcheck(service):
             
         elif service_type == 'rest':
             # REST service health check
+            logger.info(f"Executing REST health check for endpoint: {endpoint}")
             client = RESTClient(
                 endpoint,
                 username=auth.get('username'),
@@ -381,6 +420,7 @@ def _execute_healthcheck(service):
             headers = service.get('headers', {})
             body = service.get('body')
             
+            logger.info(f"Calling REST {method} {rest_endpoint} with params: {params}")
             response = client.execute_request(
                 endpoint=rest_endpoint,
                 method=method,
@@ -388,24 +428,31 @@ def _execute_healthcheck(service):
                 headers=headers,
                 body=body
             )
+            logger.info(f"REST response status: {response.get('status_code')}")
         else:
             raise ValueError(f"Unknown service type: {service_type}")
         
         # Validate response
         validation_result = service_manager.validate_response(response, validation_rules)
         
-        return {
+        result = {
             'success': response.get('success', False) and validation_result['passed'],
             'response': response,
             'validation': validation_result,
             'timestamp': datetime.now().isoformat()
         }
         
+        if not result['success']:
+            logger.warning(f"Health check failed for {service.get('name', 'unknown')}: validation={validation_result}")
+        
+        return result
+        
     except Exception as e:
-        logger.error(f"Health check error for {service.get('name', 'unknown')}: {str(e)}")
+        error_msg = str(e)
+        logger.error(f"Health check error for {service.get('name', 'unknown')}: {error_msg}", exc_info=True)
         return {
             'success': False,
-            'error': 'Health check failed. Please check service configuration.',
+            'error': error_msg,
             'timestamp': datetime.now().isoformat()
         }
 

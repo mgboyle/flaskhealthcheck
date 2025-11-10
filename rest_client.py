@@ -4,7 +4,16 @@ Supports Windows Authentication via NTLM and Kerberos
 """
 import requests
 from requests_ntlm import HttpNtlmAuth
-from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+
+# Try to import Kerberos support, but make it optional
+try:
+    from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+    KERBEROS_AVAILABLE = True
+except ImportError:
+    KERBEROS_AVAILABLE = False
+    HTTPKerberosAuth = None
+    OPTIONAL = None
+
 import logging
 import json
 
@@ -36,6 +45,9 @@ class RESTClient:
         
         # Setup authentication if credentials provided
         if username and password and auth_type == 'kerberos':
+            if not KERBEROS_AVAILABLE:
+                raise ImportError("Kerberos authentication requested but requests_kerberos is not installed. "
+                                "Install it with: pip install requests-kerberos")
             self.session.auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
             logger.info(f"Initialized REST client for {base_url} with Kerberos Authentication")
         elif username and password:
