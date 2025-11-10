@@ -2,6 +2,14 @@
 
 let currentServiceId = null;
 let services = {};
+let debugMode = false;
+
+// Debug logging helper
+function debugLog(...args) {
+    if (debugMode) {
+        console.log('[DEBUG]', ...args);
+    }
+}
 
 // DOM Elements
 const servicesContainer = document.getElementById('servicesContainer');
@@ -20,6 +28,18 @@ const validationRules = document.getElementById('validationRules');
 document.addEventListener('DOMContentLoaded', () => {
     loadServices();
     setupEventListeners();
+    
+    // Setup debug mode toggle
+    const debugCheckbox = document.getElementById('debugMode');
+    if (debugCheckbox) {
+        debugCheckbox.addEventListener('change', (e) => {
+            debugMode = e.target.checked;
+            console.log(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`);
+            if (debugMode) {
+                console.log('Debug mode enabled. Detailed logs will be shown in the console.');
+            }
+        });
+    }
 });
 
 function setupEventListeners() {
@@ -199,21 +219,8 @@ async function loadExamplePayloadForMethod() {
     loadExampleBtn.textContent = 'Loading...';
     
     try {
-        // Collect authentication credentials if provided
-        const auth = {};
-        const authType = document.getElementById('authType').value;
-        const username = document.getElementById('authUsername').value.trim();
-        const password = document.getElementById('authPassword').value.trim();
-        const domain = document.getElementById('authDomain').value.trim();
-        
-        if (username || password) {
-            auth.username = username;
-            auth.password = password;
-            auth.auth_type = authType || 'ntlm';
-            if (domain && authType === 'ntlm') {
-                auth.domain = domain;
-            }
-        }
+        debugLog(`Loading example payload for method: ${methodName}`);
+        console.log(`Loading example payload for method: ${methodName}`);
         
         const response = await fetch('/api/get-method-params', {
             method: 'POST',
@@ -227,16 +234,41 @@ async function loadExamplePayloadForMethod() {
         
         const data = await response.json();
         
+        debugLog('Response from /api/get-method-params:', data);
+        console.log('Response from /api/get-method-params:', data);
+        
         if (response.ok && data.success && data.example_payload) {
-            // Populate the textarea with formatted JSON
-            soapParamsTextarea.value = JSON.stringify(data.example_payload, null, 2);
-            alert('Example payload loaded! You can now edit the values as needed.');
+            debugLog('Example payload received:', data.example_payload);
+            console.log('Example payload received:', data.example_payload);
+            
+            // Check if the payload is empty
+            if (Object.keys(data.example_payload).length === 0) {
+                alert('No parameters found for this method. The method may not require any input parameters.');
+                soapParamsTextarea.value = '{}';
+            } else {
+                // Populate the textarea with formatted JSON
+                const formattedPayload = JSON.stringify(data.example_payload, null, 2);
+                soapParamsTextarea.value = formattedPayload;
+                debugLog('Populated textarea with:', formattedPayload);
+                console.log('Populated textarea with:', formattedPayload);
+                alert('Example payload loaded successfully! You can now edit the values as needed.');
+            }
         } else {
-            alert(data.error || 'Failed to load example payload');
+            const errorMsg = data.error || 'Failed to load example payload';
+            const details = data.details ? `\n\nDetails: ${data.details}` : '';
+            console.error('Error loading example payload:', errorMsg, details);
+            debugLog('Error details:', data);
+            
+            let displayMsg = errorMsg;
+            if (debugMode && details) {
+                displayMsg += details;
+            }
+            alert(displayMsg + '\n\nCheck the console for more details.');
         }
     } catch (error) {
         console.error('Error loading example payload:', error);
-        alert(`Failed to load example payload: ${error.message}`);
+        debugLog('Exception caught:', error);
+        alert(`Failed to load example payload: ${error.message}\n\nPlease check the browser console for more details.`);
     } finally {
         loadExampleBtn.disabled = false;
         loadExampleBtn.textContent = '📝 Load Example Payload';
@@ -550,7 +582,15 @@ function collectValidationRules() {
 
 async function runHealthcheck(serviceId) {
     try {
-        showNotification(`Running health check for ${services[serviceId].name}...`, 'info');
+        const serviceName = services[serviceId].name;
+        showNotification(`Running health check for ${serviceName}...`, 'info');
+        
+        debugLog(`Starting health check for service ${serviceId}: ${serviceName}`);
+        console.log(`Starting health check for service ${serviceId}: ${serviceName}`);
+        
+        if (debugMode) {
+            console.log('Service configuration:', services[serviceId]);
+        }
         
         const response = await fetch(`/api/services/${serviceId}/healthcheck`, {
             method: 'POST'
@@ -558,20 +598,41 @@ async function runHealthcheck(serviceId) {
         
         const data = await response.json();
         
+        debugLog('Health check response:', data);
+        console.log('Health check response:', data);
+        
         if (data.success) {
             const result = data.result;
             if (result.success) {
                 showNotification('Health check passed!', 'success');
             } else {
-                showNotification('Health check failed', 'error');
+                const errorMsg = result.error || 'Health check failed';
+                console.error('Health check failed:', result);
+                debugLog('Failure details:', result);
+                
+                let displayMsg = `Health check failed: ${errorMsg}`;
+                if (debugMode && result.response) {
+                    displayMsg += `\n\nResponse: ${JSON.stringify(result.response, null, 2)}`;
+                }
+                showNotification(displayMsg, 'error');
             }
             loadServices();
         } else {
-            showNotification(data.error || 'Health check failed', 'error');
+            const errorMsg = data.error || 'Health check failed';
+            const details = data.details ? `\n\nDetails: ${data.details}` : '';
+            console.error('Health check error:', errorMsg, details);
+            debugLog('Error data:', data);
+            
+            let displayMsg = errorMsg;
+            if (debugMode && details) {
+                displayMsg += details;
+            }
+            showNotification(displayMsg, 'error');
         }
     } catch (error) {
         console.error('Error running health check:', error);
-        showNotification('Failed to run health check', 'error');
+        debugLog('Exception:', error);
+        showNotification(`Failed to run health check: ${error.message}`, 'error');
     }
 }
 
